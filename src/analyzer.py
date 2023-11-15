@@ -8,7 +8,7 @@ from skyMath import getMedianExponent, parsePrizeList
 
 
 print("hello worldwwwssswqdsdesse")
-
+pr
 def getPlotData(ItemId:BazaarItemID | AuctionItemID | str, func):
     hist = func(ItemId)
     pastRawBuyPrizes = []
