@@ -7,7 +7,7 @@ from typing import Tuple, List
 from skyMath import getMedianExponent, parsePrizeList
 
 
-print("hello worldwwwswqs")
+print("hello worldwwwswqes")
 
 def getPlotData(ItemId:BazaarItemID | AuctionItemID | str, func):
     hist = func(ItemId)
