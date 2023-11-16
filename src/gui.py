@@ -19,6 +19,7 @@ from constants import STYLE_GROUP as SG, LOAD_STYLE
 from skyMath import getPlotTicksFromInterval, parseTimeDelta, getFlattenList, getMedianExponent, parsePrizeList, getMedianFromList
 from skyMisc import modeToBazaarAPIFunc, prizeToStr
 from widgets import CompleterEntry, CustomPage, CustomMenuPage
+from images import IconLoader
 
 IMAGES = os.path.join(os.path.split(__file__)[0], "images")
 CONFIG = os.path.join(os.path.split(__file__)[0], "config")
@@ -244,8 +245,6 @@ class MayorInfoPage(CustomPage):
         for perk in self.mayorData[mName]["perks"]:
             if perk["name"] == pName:
                 return perk["description"]
-
-
 
     def configureContentFrame(self):
         mayorName = self.currentMayor.getName().lower()
@@ -667,6 +666,7 @@ class Window(tk.Tk):
     def __init__(self):
         super().__init__(group=SG)
         LOAD_STYLE() # load DarkMode!
+        IconLoader.loadIcons()
         self.isShiftPressed = False
         self.isControlPressed = False
         self.isAltPressed = False
@@ -690,7 +690,7 @@ class Window(tk.Tk):
         self.mainMenuPage.openMenuPage()
     def configureWindow(self):
         self.setMinSize(600, 600)
-        self.setTitle("SkyblockTools")
+        self.setTitle("SkyBlockTools")
         self.bind(self.onKeyPress, tk.EventType.SHIFT_LEFT_DOWN, args=["isShiftPressed", True])
         self.bind(self.onKeyPress, tk.EventType.SHIFT_LEFT_UP, args=["isShiftPressed", False])
 

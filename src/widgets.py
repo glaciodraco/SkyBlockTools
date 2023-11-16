@@ -1,5 +1,6 @@
 from constants import STYLE_GROUP as SG
 from pysettings import tk
+from images import IconLoader
 import os
 
 
@@ -25,7 +26,7 @@ class CustomPage(tk.MenuPage):
         if showTitle and pageTitle is not None:
             self._titleL = tk.Label(self, SG).setFont(16).setText(pageTitle).placeRelative(centerX=True, fixHeight=30, fixY=10)
         if showBackButton:
-            tk.Button(self, SG).setText("<Back").setCommand(self.openLastMenuPage).placeRelative(stickDown=True, fixWidth=100, fixHeight=40)
+            tk.Button(self, SG).setImage(IconLoader.ICONS["home"]).setCommand(self.openLastMenuPage).placeRelative(stickDown=True, fixWidth=100, fixHeight=40)
         if showHomeButton:
             tk.Button(self, SG).setText("Home").setCommand(self._home).placeRelative(stickDown=True, stickRight=True, fixWidth=100, fixHeight=40)
     def _home(self):
