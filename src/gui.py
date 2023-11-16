@@ -621,7 +621,6 @@ class EnchantingBookBazaarCheapestPage(CustomPage):
                          msg="Search EnchantedBook in Bazaar: (At least tree characters)",
                          next_page=self)
 
-
 # Menu Pages
 class MainMenuPage(CustomMenuPage):
     def __init__(self, master, tools:List[CustomMenuPage | CustomPage]):
