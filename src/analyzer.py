@@ -6,7 +6,7 @@ from typing import Tuple, List
 
 from skyMath import getMedianExponent, parsePrizeList
 
-
+"hello"
 
 
 def getPlotData(ItemId:BazaarItemID | AuctionItemID | str, func):
