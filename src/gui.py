@@ -638,7 +638,9 @@ class MainMenuPage(CustomMenuPage):
         self.playerHead2.preRender()
 
         tk.Label(self, SG).setText("Made by").placeRelative(stickRight=True, stickDown=True, fixHeight=25, fixWidth=100, changeY=-40, changeX=-25)
-        
+
+        tk.Button(self, SG).setImage(IconLoader.ICONS["settings"]).setCommand(None).placeRelative(stickDown=True, fixWidth=40, fixHeight=40).setStyle(tk.Style.FLAT)
+
         self.pl1L = tk.Label(self, SG).setImage(self.playerHead1)
         self.pl2L = tk.Label(self, SG).setImage(self.playerHead2)
         self.pl1L.attachToolTip("LOL_Hunter", waitBeforeShow=0, group=SG)
