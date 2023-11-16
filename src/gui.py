@@ -6,6 +6,7 @@ from hyPI.constants import BazaarItemID, AuctionItemID
 from hyPI.skyCoflnetAPI import SkyConflnetAPI
 from pysettings import tk, iterDict
 from pysettings.jsonConfig import JsonConfig
+from pysettings.text import MsgText
 from threading import Thread
 from time import sleep, time
 from typing import List
@@ -628,14 +629,8 @@ class MainMenuPage(CustomMenuPage):
         self.image.preRender()
         self.title = tk.Label(self, SG).setImage(self.image).placeRelative(centerX=True, fixHeight=self.image.getHeight(), fixWidth=self.image.getWidth(), fixY=25)
 
-        self.playerHead1 = tk.PILImage.loadImage(os.path.join(IMAGES, "lol_hunter.png"))
-        self.playerHead2 = tk.PILImage.loadImage(os.path.join(IMAGES, "glaciodraco.png"))
-
-        self.playerHead1.resizeTo(32, 32)
-        self.playerHead2.resizeTo(32, 32)
-
-        self.playerHead1.preRender()
-        self.playerHead2.preRender()
+        self.playerHead1 = tk.PILImage.loadImage(os.path.join(IMAGES, "lol_hunter.png")).resizeTo(32, 32).preRender()
+        self.playerHead2 = tk.PILImage.loadImage(os.path.join(IMAGES, "glaciodraco.png")).resizeTo(32, 32).preRender()
 
         tk.Label(self, SG).setText("Made by").placeRelative(stickRight=True, stickDown=True, fixHeight=25, fixWidth=100, changeY=-40, changeX=-25)
 
@@ -647,7 +642,6 @@ class MainMenuPage(CustomMenuPage):
         self.pl2L.attachToolTip("glaciodraco", waitBeforeShow=0, group=SG)
         self.pl1L.placeRelative(stickRight=True, stickDown=True, fixHeight=self.playerHead1.getHeight(), fixWidth=self.playerHead1.getHeight(), changeY=-10, changeX=-10)
         self.pl2L.placeRelative(stickRight=True, stickDown=True, changeY=-self.playerHead1.getWidth()-10*2, fixHeight=self.playerHead1.getHeight(), fixWidth=self.playerHead1.getHeight(), changeX=-10)
-        
 
         for i, tool in enumerate(tools):
             tk.Button(self, SG).setFont(16).setText(tool.getButtonText()).setCommand(self._run, args=[tool]).placeRelative(centerX=True, fixY=50 * i + 300, fixWidth=300, fixHeight=50)
@@ -666,7 +660,9 @@ class InfoMenuPage(CustomMenuPage):
 
 class Window(tk.Tk):
     def __init__(self):
+        MsgText.info("Creating GUI...")
         super().__init__(group=SG)
+        MsgText.info("Loading Style...")
         LOAD_STYLE() # load DarkMode!
         IconLoader.loadIcons()
         self.isShiftPressed = False
@@ -675,7 +671,7 @@ class Window(tk.Tk):
         self.keyPressHooks = []
         ## instantiate Pages ##
         self.searchPage = SearchPage(self)
-
+        MsgText.info("Creating MenuPages...")
         self.mainMenuPage = MainMenuPage(self, [
             InfoMenuPage(self, [
                 ItemInfoPage(self),
@@ -707,15 +703,14 @@ class Window(tk.Tk):
         for i in self.keyPressHooks:
             i()
 
-
     def createGUI(self):
         self.taskBar = tk.TaskBar(self, SG)
         self.taskBar_file = self.taskBar.createSubMenu("File")
-        tk.Button(self.taskBar_file, SG).setText("Save...")
-        self.taskBar_file.addSeparator()
+        #tk.Button(self.taskBar_file, SG).setText("Save...")
+        #self.taskBar_file.addSeparator()
         tk.Button(self.taskBar_file, SG).setText("Settings (Alt+s)")
 
-        self.taskBar_tools = self.taskBar.createSubMenu("Tools")
-        tk.Button(self.taskBar_tools, SG).setText("Bazaar Item Info")
+        #self.taskBar_tools = self.taskBar.createSubMenu("Tools")
+        #tk.Button(self.taskBar_tools, SG).setText("Bazaar Item Info")
 
         self.taskBar.create()
