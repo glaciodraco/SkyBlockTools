@@ -560,8 +560,27 @@ class EnchantingBookBazaarProfitPage(CustomPage):
     def __init__(self, master):
         super().__init__(master, pageTitle="Book Combine Profit Page", buttonText="Book Combine Profit")
 
+        self.treeView = tk.TreeView(self.contentFrame, SG)
+        self.treeView.setNoSelectMode()
+        self.treeView.setTableHeaders("Name", "Buy-Price", "Sell-Price", "Profit", "Times-Combine", "Insta-Sell/Hour", "Insta-Buy/Hour")
+        self.treeView.placeRelative(changeHeight=-25)
+
+
+        self.useBuyOffers = tk.Checkbutton(self.contentFrame, SG)
+        self.useBuyOffers.setText("Use-Buy-Offers")
+        self.useBuyOffers.placeRelative(fixHeight=25, stickDown=True, fixWidth=150)
+
+        self.useSellOffers = tk.Checkbutton(self.contentFrame, SG)
+        self.useSellOffers.setText("Use-Sell-Offers")
+        self.useSellOffers.placeRelative(fixHeight=25, stickDown=True, fixWidth=150, fixX=150)
+
+
+
         self.api = APIRequest(self, self.getTkMaster())
         self.api.setRequestAPIHook(self.requestAPIHook)
+    def updateTreeView(self):
+        pass
+
     def requestAPIHook(self):
 
         return
@@ -572,12 +591,22 @@ class EnchantingBookBazaarCheapestPage(CustomPage):
     def __init__(self, master):
         super().__init__(master, pageTitle="Cheapest Book Craft Page", buttonText="Cheapest Book Craft")
 
+        self.treeView = tk.TreeView(self.contentFrame, SG)
+        self.treeView.setNoSelectMode()
+        self.treeView.setTableHeaders("Name", "Buy-Price", "Saved-Coins")
+        self.treeView.placeRelative()
+
         self.enchantments = [i for i in BazaarItemID if i.value.startswith("enchantment".upper())]
 
         self.api = APIRequest(self, self.getTkMaster())
         self.api.setRequestAPIHook(self.requestAPIHook)
     def requestAPIHook(self):
-        return
+        self.treeView.clear()
+        #self.treeView.addEntry("")
+
+
+
+
     def onShow(self, **kwargs):
         self.placeRelative()
         self.api.startAPIRequest()
@@ -586,6 +615,7 @@ class EnchantingBookBazaarCheapestPage(CustomPage):
                          input={"Enchantment":self.enchantments},
                          msg="Search EnchantedBook in Bazaar: (At least tree characters)",
                          next_page=self)
+
 
 # Menu Pages
 class MainMenuPage(CustomMenuPage):
@@ -676,6 +706,8 @@ class Window(tk.Tk):
         self.taskBar = tk.TaskBar(self, SG)
         self.taskBar_file = self.taskBar.createSubMenu("File")
         tk.Button(self.taskBar_file, SG).setText("Save...")
+        self.taskBar_file.addSeparator()
+        tk.Button(self.taskBar_file, SG).setText("Settings (Alt+s)")
 
         self.taskBar_tools = self.taskBar.createSubMenu("Tools")
         tk.Button(self.taskBar_tools, SG).setText("Bazaar Item Info")
