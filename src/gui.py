@@ -240,55 +240,60 @@ class MayorInfoPage(CustomPage):
                 out += f"{t}{i} "
                 av = True
         return out
+    def getPerkDescFromPerkName(self, mName, pName)->str:
+        for perk in self.mayorData[mName]["perks"]:
+            if perk["name"] == pName:
+                return perk["description"]
+
+
+
     def configureContentFrame(self):
-        name = self.currentMayor.getName().lower()
+        mayorName = self.currentMayor.getName().lower()
         key = self.currentMayor.getKey()
         currYear = self.currentMayor.getYear()
         perks = self.currentMayor.getPerks()
         perkCount = self.currentMayor.getPerkAmount()
         self.currentMayorEnd = self.currentMayor.getEndTimestamp()
 
-        delta:timedelta = self.currentMayorEnd - self.getNow()
+        delta:timedelta = self.currentMayorEnd - self.getLocalizedNow()
         self.timeLabel.setText(self.parseTime(parseTimeDelta(delta)))
 
         dataContent = {
-            "Mayor Name:": name,
+            "Mayor Name:": mayorName,
             "Profession:": key,
             "Year:": currYear,
-            "Peaks:": f"[{perkCount}/{len(self.mayorData[name]['perks'])}]"
+            "Peaks:": f"[{perkCount}/{len(self.mayorData[mayorName]['perks'])}]"
         }
         self.dataText.setText(f"\n".join([f"{k} {v}" for k, v in iterDict(dataContent)]))
 
         out = ""
         activePerkNames = []
         for perk in perks:
-            name_ = perk.getPerkName()
-            activePerkNames.append(name_)
-            desc = perk.getDescription()
-            out += f"§g== {name_} ==\n"
-            out += f"§c{desc}\n"
-        for perk in self.mayorData[name]["perks"]:
-            name_ = perk["name"]
-            desc = perk["description"]
-            if name_ not in activePerkNames:
-                out += f"§r== {name_} ==\n"
-                out += f"§c{desc}\n"
+            perkName = perk.getPerkName()
+            activePerkNames.append(perkName)
+            out += f"§g== {perkName} ==\n"
+            out += f"§c{self.getPerkDescFromPerkName(mayorName, perkName)}\n"
+        for perk in self.mayorData[mayorName]["perks"]:
+            perkName = perk["name"]
+            if perkName not in activePerkNames:
+                out += f"§r== {perkName} ==\n"
+                out += f"§c{self.getPerkDescFromPerkName(mayorName, perkName)}\n"
 
         self.dataTextPerks.clear()
         self.dataTextPerks.addStrf(out)
 
-        if name in self.images.keys():
-            self.imageDisplay.setImage(self.images[name])
+        if mayorName in self.images.keys():
+            self.imageDisplay.setImage(self.images[mayorName])
         else:
             self.imageDisplay.clearImage()
             self.imageDisplay.setText("No Image Available")
-    def getNow(self):
+    def getLocalizedNow(self)->datetime:
         return timezone("Europe/Berlin").localize(datetime.now())
     def updateTimer(self):
         while True:
             sleep(1)
             if self.currentMayorEnd is None: continue
-            delta: timedelta = self.currentMayorEnd - self.getNow()
+            delta: timedelta = self.currentMayorEnd - self.getLocalizedNow()
             self.timeLabel.setText(self.parseTime(parseTimeDelta(delta)))
     def loadMayorImages(self):
         images = {}
