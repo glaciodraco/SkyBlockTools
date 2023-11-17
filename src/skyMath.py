@@ -52,10 +52,6 @@ def getMedianExponent(prizes:list)->Tuple[int, str] | Tuple[None, None]:
         if exponent > 5:
             return None, None
     return exponent, prefixList[exponent]
-
-
-
-
 def getFlattenList(inputList:List[float])->List[float]:
     inputList = inputList.copy()
     listOfSusData = getSuspiciousData(inputList)
@@ -75,8 +71,6 @@ def getFlattenList(inputList:List[float])->List[float]:
     return clearedList
 def getMedianFromList(_in:List[float])->float:
     return float(median(_in))
-
-
 def getSuspiciousData(inputList: List[float], flattenFactor: float = 1.0) -> List[float]:
     # Never used so far. If used maybe with Error
     def _mostData(x=0):
@@ -100,7 +94,6 @@ def getSuspiciousData(inputList: List[float], flattenFactor: float = 1.0) -> Lis
         if single < borderDown or single > borderUp:
             isSusList.append(single)
     return isSusList
-
 
 
 class TimeDelta:

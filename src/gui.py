@@ -21,6 +21,7 @@ from skyMath import getPlotTicksFromInterval, parseTimeDelta, getFlattenList, ge
 from skyMisc import modeToBazaarAPIFunc, prizeToStr
 from widgets import CompleterEntry, CustomPage, CustomMenuPage
 from images import IconLoader
+from settings import SettingsGUI
 
 IMAGES = os.path.join(os.path.split(__file__)[0], "images")
 CONFIG = os.path.join(os.path.split(__file__)[0], "config")
@@ -633,8 +634,9 @@ class MainMenuPage(CustomMenuPage):
         self.playerHead2 = tk.PILImage.loadImage(os.path.join(IMAGES, "glaciodraco.png")).resizeTo(32, 32).preRender()
 
         tk.Label(self, SG).setText("Made by").placeRelative(stickRight=True, stickDown=True, fixHeight=25, fixWidth=100, changeY=-40, changeX=-25)
-
-        tk.Button(self, SG).setImage(IconLoader.ICONS["settings"]).setCommand(None).placeRelative(stickDown=True, fixWidth=40, fixHeight=40).setStyle(tk.Style.FLAT)
+        def _openSettings():
+            SettingsGUI.openSettings(self.master)
+        tk.Button(self, SG).setImage(IconLoader.ICONS["settings"]).setCommand(_openSettings).placeRelative(stickDown=True, fixWidth=40, fixHeight=40).setStyle(tk.Style.FLAT)
 
         self.pl1L = tk.Label(self, SG).setImage(self.playerHead1)
         self.pl2L = tk.Label(self, SG).setImage(self.playerHead2)
@@ -700,8 +702,8 @@ class Window(tk.Tk):
 
     def onKeyPress(self, e):
         setattr(self, e.getArgs(0), e.getArgs(1))
-        for i in self.keyPressHooks:
-            i()
+        for hook in self.keyPressHooks:
+            hook()
 
     def createGUI(self):
         self.taskBar = tk.TaskBar(self, SG)
