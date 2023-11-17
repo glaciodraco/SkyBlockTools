@@ -1,30 +1,33 @@
 # -*- coding: iso-8859-15 -*-
-import os
-from datetime import datetime, timedelta
 from hyPI._parsers import MayorData, BazaarHistory, BazaarHistoryProduct
 from hyPI.constants import BazaarItemID, AuctionItemID
+from hyPI.APIError import APIConnectionError
 from hyPI.skyCoflnetAPI import SkyConflnetAPI
 from pysettings import tk, iterDict
 from pysettings.jsonConfig import JsonConfig
-from pysettings.text import MsgText
+from pysettings.text import MsgText, TextColor
+from traceback import format_exc
+from datetime import datetime, timedelta
 from threading import Thread
 from time import sleep, time
 from typing import List
+import os
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from pytz import timezone
 
 from analyzer import getPlotData
-from constants import STYLE_GROUP as SG, LOAD_STYLE
+from constants import STYLE_GROUP as SG, LOAD_STYLE, INFO_LABEL_GROUP as ILG
 from skyMath import getPlotTicksFromInterval, parseTimeDelta, getFlattenList, getMedianExponent, parsePrizeList, getMedianFromList
-from skyMisc import modeToBazaarAPIFunc, prizeToStr
+from skyMisc import modeToBazaarAPIFunc, prizeToStr, requestHypixelAPI, updateInfoLabel
 from widgets import CompleterEntry, CustomPage, CustomMenuPage
 from images import IconLoader
-from settings import SettingsGUI
+from settings import SettingsGUI, Config
 
 IMAGES = os.path.join(os.path.split(__file__)[0], "images")
 CONFIG = os.path.join(os.path.split(__file__)[0], "config")
+SKY_BLOCK_API_PARSER = None
 
 class APIRequest:
     """
@@ -35,9 +38,10 @@ class APIRequest:
     start the API request by using 'startAPIRequest'
 
     """
-    def __init__(self, page, tkMaster:tk.Tk | tk.Toplevel):
+    def __init__(self, page, tkMaster:tk.Tk | tk.Toplevel, showLoadingFrame=True):
         self._tkMaster = tkMaster
         self._page = page
+        self._showLoadingFrame = showLoadingFrame
         self._dots = 0
         self._dataAvailable = False
         self._hook = None
@@ -51,7 +55,7 @@ class APIRequest:
         assert self._hook is not None, "REQUEST HOOK IS NONE!"
         self._dataAvailable = False
         self._page.hideContentFrame()
-        self._waitingLabel.placeRelative(fixY=100, centerX=True, changeHeight=-40)
+        if self._showLoadingFrame: self._waitingLabel.placeRelative(fixY=100, centerX=True, changeHeight=-40)
         self._waitingLabel.update()
         Thread(target=self._updateWaitingForAPI).start()
         Thread(target=self._requestAPI).start()
@@ -247,7 +251,6 @@ class MayorInfoPage(CustomPage):
         for perk in self.mayorData[mName]["perks"]:
             if perk["name"] == pName:
                 return perk["description"]
-
     def configureContentFrame(self):
         mayorName = self.currentMayor.getName().lower()
         key = self.currentMayor.getKey()
@@ -263,7 +266,7 @@ class MayorInfoPage(CustomPage):
             "Mayor Name:": mayorName,
             "Profession:": key,
             "Year:": currYear,
-            "Peaks:": f"[{perkCount}/{len(self.mayorData[mayorName]['perks'])}]"
+            "Perks:": f"[{perkCount}/{len(self.mayorData[mayorName]['perks'])}]"
         }
         self.dataText.setText(f"\n".join([f"{k} {v}" for k, v in iterDict(dataContent)]))
 
@@ -659,6 +662,53 @@ class InfoMenuPage(CustomMenuPage):
 
         for i, tool in enumerate(tools):
             tk.Button(self, SG).setFont(16).setText(tool.getButtonText()).setCommand(self._run, args=[tool]).placeRelative(centerX=True, fixY=50 * i + 50, fixWidth=300, fixHeight=50)
+class LoadingPage(CustomPage):
+    def __init__(self, master):
+        super().__init__(master, showTitle=False, showHomeButton=False, showBackButton=False, showInfoLabel=False)
+        self.master:Window = master
+        self.image = tk.PILImage.loadImage(os.path.join(IMAGES, "logo.png"))
+        self.image.preRender()
+        self.title = tk.Label(self, SG).setImage(self.image).placeRelative(centerX=True, fixHeight=self.image.getHeight(), fixWidth=self.image.getWidth(), fixY=25)
+
+        self.processBar = tk.Progressbar(self, SG)
+        self.processBar.placeRelative(fixHeight=25, fixY=300, changeX=+50, changeWidth=-100)
+
+        self.info = tk.Label(self, SG).setFont(16)
+        self.info.placeRelative(fixHeight=25, fixY=340, changeX=+50, changeWidth=-100)
+
+    def load(self):
+        global SKY_BLOCK_API_PARSER
+        msgs = ["Loading Config...", "Applying Settings...", "Fetching Hypixel API...", "Finishing Up..."]
+        self.processBar.setValues(len(msgs))
+        for i, msg in enumerate(msgs):
+            self.processBar.addValue()
+            if i == 0: # loading config
+                self.info.setText(msg)
+                sleep(.5)
+                configList = os.listdir(os.path.join(CONFIG))
+                for j, file in enumerate(configList):
+                    self.info.setText(msg+f"  ({file.split('.')[0]}) [{j+1}/{len(configList)}]")
+                    sleep(.1)
+            elif i == 2: # fetch API
+                self.info.setText(msg)
+                self.processBar.setAutomaticMode()
+
+                SKY_BLOCK_API_PARSER = requestHypixelAPI(self.master)
+
+                updateInfoLabel(SKY_BLOCK_API_PARSER)
+
+                self.processBar.setNormalMode()
+                self.processBar.setValue(i+1)
+            else:
+                self.info.setText(msg)
+                sleep(.5)
+        self.placeForget()
+        self.master.mainMenuPage.openMenuPage()
+    def requestAPIHook(self):
+        pass
+    def onShow(self, **kwargs):
+        self.placeRelative()
+        #self.api.startAPIRequest()
 
 class Window(tk.Tk):
     def __init__(self):
@@ -672,8 +722,9 @@ class Window(tk.Tk):
         self.isAltPressed = False
         self.keyPressHooks = []
         ## instantiate Pages ##
-        self.searchPage = SearchPage(self)
         MsgText.info("Creating MenuPages...")
+        self.searchPage = SearchPage(self)
+        self.loadingPage = LoadingPage(self)
         self.mainMenuPage = MainMenuPage(self, [
             InfoMenuPage(self, [
                 ItemInfoPage(self),
@@ -687,7 +738,8 @@ class Window(tk.Tk):
 
         self.configureWindow()
         self.createGUI()
-        self.mainMenuPage.openMenuPage()
+        self.loadingPage.openMenuPage()
+        Thread(target=self.loadingPage.load).start()
     def configureWindow(self):
         self.setMinSize(600, 600)
         self.setTitle("SkyBlockTools")
@@ -699,17 +751,16 @@ class Window(tk.Tk):
 
         self.bind(self.onKeyPress, tk.EventType.STRG_LEFT_DOWN, args=["isControlPressed", True])
         self.bind(self.onKeyPress, tk.EventType.STRG_LEFT_UP, args=["isControlPressed", False])
-
     def onKeyPress(self, e):
         setattr(self, e.getArgs(0), e.getArgs(1))
         for hook in self.keyPressHooks:
             hook()
-
     def createGUI(self):
         self.taskBar = tk.TaskBar(self, SG)
         self.taskBar_file = self.taskBar.createSubMenu("File")
         #tk.Button(self.taskBar_file, SG).setText("Save...")
-        #self.taskBar_file.addSeparator()
+        tk.Button(self.taskBar_file, SG).setText("Refresh API Data...(Alt+F5)")
+        self.taskBar_file.addSeparator()
         tk.Button(self.taskBar_file, SG).setText("Settings (Alt+s)")
 
         #self.taskBar_tools = self.taskBar.createSubMenu("Tools")

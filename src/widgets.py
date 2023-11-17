@@ -1,8 +1,29 @@
-from constants import STYLE_GROUP as SG
+from constants import STYLE_GROUP as SG, INFO_LABEL_GROUP as ILG
 from pysettings import tk
 from images import IconLoader
-import os
 
+class SettingValue(tk.Frame):
+    CONFIG = None
+    def __init__(self, master, name, x, y, key):
+        super().__init__(master, SG)
+        self._key = key
+        self._e = tk.TextEntry(master, SG)
+        self._e.setValue(SettingValue.CONFIG["constants"][key])
+        self._e.setText(name)
+        self._e.getEntry().onUserInputEvent(self._set)
+        self._e.place(0, 0, 250, 30)
+
+        tk.Button(self, SG).setText("Reset").setCommand(self._reset).place(250, 0, 50, 30)
+
+        self.place(x, y, 300, 30)
+    def _reset(self):
+        SettingValue.CONFIG["constants"][self._key] = SettingValue.CONFIG._std["constants"][self._key]
+        SettingValue.CONFIG.save()
+        self._e.setValue(SettingValue.CONFIG["constants"][self._key])
+
+    def _set(self):
+        SettingValue.CONFIG["constants"][self._key] = self._e.getValue()
+        SettingValue.CONFIG.save()
 
 
 class CustomPage(tk.MenuPage):
@@ -17,7 +38,7 @@ class CustomPage(tk.MenuPage):
     place all widgets to build in content widget! -> 'contentFrame'
 
     """
-    def __init__(self, master, pageTitle:str="", buttonText:str="", showBackButton=True, showTitle=True, showHomeButton=True, **kwargs):
+    def __init__(self, master, pageTitle:str="", buttonText:str="", showBackButton=True, showTitle=True, showHomeButton=True, showInfoLabel=True, **kwargs):
         super().__init__(master, SG)
         self._buttonText = buttonText
         self._pageTitle = pageTitle
@@ -29,6 +50,8 @@ class CustomPage(tk.MenuPage):
             tk.Button(self, SG).setText("<Back").setCommand(self.openLastMenuPage).placeRelative(stickDown=True, fixWidth=100, fixHeight=40)
         if showHomeButton:
             tk.Button(self, SG).setImage(IconLoader.ICONS["home"]).setCommand(self._home).placeRelative(stickDown=True, stickRight=True, fixWidth=100, fixHeight=40)
+        if showInfoLabel:
+            self._info = tk.Label(self, ILG).placeRelative(stickDown=True, fixHeight=15, changeX=100, changeWidth=-200)
     def _home(self):
         self.master.mainMenuPage._menuData["history"] = [self.master.mainMenuPage]
         self.placeForget()
@@ -82,10 +105,6 @@ class CustomMenuPage(CustomPage):
         @return:
         """
         self.placeRelative()
-
-
-
-
 class CompleterEntry(tk.Entry):
     def __init__(self, _master):
         if isinstance(_master, dict):

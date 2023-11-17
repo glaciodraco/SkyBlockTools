@@ -8,6 +8,8 @@ class Color:
     COLOR_GRAY = tk.Color.rgb(160, 160, 160)
 
 
+
+
 STYLE_GROUP = tk.WidgetGroup()
 STYLE_GROUP.addCommand("setBg", Color.COLOR_DARK, ignoreErrors=True)
 STYLE_GROUP.addCommand("setFg", Color.COLOR_WHITE, ignoreErrors=True)
@@ -17,6 +19,7 @@ STYLE_GROUP.addCommand("setSelectBackGroundColor", Color.COLOR_GRAY, ignoreError
 STYLE_GROUP.addCommand("setSelectColor", Color.COLOR_GRAY, ignoreErrors=True)
 STYLE_GROUP.addCommand("setSlotBgAll", Color.COLOR_GRAY, ignoreErrors=True)
 
+INFO_LABEL_GROUP = tk.WidgetGroup(instantiate=STYLE_GROUP)
 
 
 def LOAD_STYLE():

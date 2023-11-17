@@ -1,6 +1,5 @@
 from hyPI.hypixelAPI import fileLoader, APILoader, HypixelBazaarParser
 from hyPI.constants import BazaarItemID, AuctionItemID, HypixelAPIURL
-from hyPI import setAPIKey, setPlayerName
 from hyPI.skyCoflnetAPI import SkyConflnetAPI
 from typing import Tuple, List
 
