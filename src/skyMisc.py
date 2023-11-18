@@ -1,6 +1,8 @@
 from hyPI.APIError import APIConnectionError, NoAPIKeySetException
 from hyPI.hypixelAPI import HypixelAPIURL, HypixelBazaarParser, APILoader, fileLoader
 from hyPI.skyCoflnetAPI import SkyConflnetAPI
+from hyPI.constants import ALL_ENCHANTMENT_IDS
+from hyPI import getEnchantmentIDLvl
 from pysettings import tk
 from pysettings.text import TextColor
 from traceback import format_exc
@@ -8,6 +10,7 @@ from datetime import datetime
 from constants import INFO_LABEL_GROUP as ILG
 from settings import Config
 from skyMath import parseTimeDelta
+from typing import List, Dict
 
 def requestHypixelAPI(master, path=None):
     try:
@@ -77,3 +80,33 @@ def prizeToStr(inputPrize:int | float)->str:
         if exponent > 5:
             return f"Overflow {inputPrize}"
     return str(round(inputPrize, 1)) +" "+ prefix[exponent]
+
+def getDictEnchantmentIDToLevels()->Dict[str, List[str]]:
+    """
+    Returns a dictionary to access the valid enchantment levels from raw enchantmentID.
+
+    format: {'ENCHANTMENT_TABASCO': ['ENCHANTMENT_TABASCO_1', 'ENCHANTMENT_TABASCO_2', 'ENCHANTMENT_TABASCO_3']}
+    @return:
+    """
+    typeEnchantment = {}
+    for singleEnchantment in ALL_ENCHANTMENT_IDS:
+        enchantmentName, _ = getEnchantmentIDLvl(singleEnchantment)
+        if enchantmentName in typeEnchantment:
+            typeEnchantment[enchantmentName].append(singleEnchantment)
+            typeEnchantment[enchantmentName].sort()
+        else:
+            typeEnchantment[enchantmentName] = [singleEnchantment]
+    return typeEnchantment
+
+
+
+
+
+
+
+
+
+
+
+
+

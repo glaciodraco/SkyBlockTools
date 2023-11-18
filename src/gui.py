@@ -1,7 +1,7 @@
 # -*- coding: iso-8859-15 -*-
 from hyPI._parsers import MayorData, BazaarHistory, BazaarHistoryProduct
-from hyPI.constants import BazaarItemID, AuctionItemID
-from hyPI.APIError import APIConnectionError
+from hyPI.constants import BazaarItemID, AuctionItemID, ALL_ENCHANTMENT_IDS
+from hyPI.APIError import APIConnectionError, NoAPIKeySetException
 from hyPI.hypixelAPI.loader import HypixelBazaarParser
 from hyPI.skyCoflnetAPI import SkyConflnetAPI
 from pysettings import tk, iterDict
@@ -18,7 +18,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from pytz import timezone
 
-from analyzer import getPlotData
+from analyzer import getPlotData, getCheapestEnchantmentData
 from constants import STYLE_GROUP as SG, LOAD_STYLE, INFO_LABEL_GROUP as ILG
 from skyMath import getPlotTicksFromInterval, parseTimeDelta, getFlattenList, getMedianExponent, parsePrizeList, getMedianFromList
 from skyMisc import modeToBazaarAPIFunc, parseTimeToStr, prizeToStr, requestHypixelAPI, updateInfoLabel
@@ -28,7 +28,7 @@ from settings import SettingsGUI, Config
 
 IMAGES = os.path.join(os.path.split(__file__)[0], "images")
 CONFIG = os.path.join(os.path.split(__file__)[0], "config")
-SKY_BLOCK_API_PARSER = None
+SKY_BLOCK_API_PARSER:HypixelBazaarParser = None
 
 class APIRequest:
     """
@@ -247,7 +247,6 @@ class MayorInfoPage(CustomPage):
         self.getTkMaster().updateDynamicWidgets()
     def createHistoryTab(self, tab):
         pass
-
     def getPerkDescFromPerkName(self, mName, pName)->str:
         for perk in self.mayorData[mName]["perks"]:
             if perk["name"] == pName:
@@ -313,7 +312,16 @@ class MayorInfoPage(CustomPage):
             images[name] = image
         return images
     def requestAPIHook(self):
-        self.mayorHist = SkyConflnetAPI.getMayorData()
+        try:
+            self.mayorHist = SkyConflnetAPI.getMayorData()
+        except APIConnectionError as e:
+            TextColor.print(format_exc(), "red")
+            tk.SimpleDialog.askError(self.master, e.getMessage(), "SkyBlockTools")
+            return None
+        except NoAPIKeySetException as e:
+            TextColor.print(format_exc(), "red")
+            tk.SimpleDialog.askError(self.master, e.getMessage(), "SkyBlockTools")
+            return None
         self.currentMayor = self.mayorHist.getCurrentMayor()
         self.configureContentFrame()
     def onShow(self, **kwargs):
@@ -457,7 +465,16 @@ class ItemInfoPage(CustomPage):
         return fbp, fsp, flatPref
     def requestAPIHook(self):
         # api request
-        self.currentHistoryData = getPlotData(self.selectedItem, modeToBazaarAPIFunc(self.selectedMode))
+        try:
+            self.currentHistoryData = getPlotData(self.selectedItem, modeToBazaarAPIFunc(self.selectedMode))
+        except APIConnectionError as e:
+            TextColor.print(format_exc(), "red")
+            tk.SimpleDialog.askError(self.master, e.getMessage(), "SkyBlockTools")
+            return None
+        except NoAPIKeySetException as e:
+            TextColor.print(format_exc(), "red")
+            tk.SimpleDialog.askError(self.master, e.getMessage(), "SkyBlockTools")
+            return None
 
         #flatten prices
         fbp, fsp, flatPref = self._flattenPrices(self.currentHistoryData["past_raw_buy_prices"], self.currentHistoryData["past_raw_sell_prices"])
@@ -585,8 +602,6 @@ class EnchantingBookBazaarProfitPage(CustomPage):
         self.useSellOffers.setText("Use-Sell-Offers")
         self.useSellOffers.placeRelative(fixHeight=25, stickDown=True, fixWidth=150, fixX=150)
 
-
-
         self.api = APIRequest(self, self.getTkMaster())
         self.api.setRequestAPIHook(self.requestAPIHook)
     def updateTreeView(self):
@@ -601,29 +616,51 @@ class EnchantingBookBazaarProfitPage(CustomPage):
 class EnchantingBookBazaarCheapestPage(CustomPage):
     def __init__(self, master):
         super().__init__(master, pageTitle="Cheapest Book Craft Page", buttonText="Cheapest Book Craft")
+        self.currentItem = None
+        self.currentParser = None
+
+        self.useBuyOffers = tk.Checkbutton(self.contentFrame, SG)
+        self.useBuyOffers.setText("Use-Buy-Order-Price")
+        self.useBuyOffers.placeRelative(fixHeight=25, stickDown=True, fixWidth=150)
 
         self.treeView = tk.TreeView(self.contentFrame, SG)
         self.treeView.setNoSelectMode()
-        self.treeView.setTableHeaders("Name", "Buy-Price", "Saved-Coins")
-        self.treeView.placeRelative()
+        self.treeView.setTableHeaders("Name", "Buy-Price-Per-Item", "Buy-Amount", "Total-Buy-Price", "Saved-Coins")
+        self.treeView.placeRelative(changeHeight=-25)
 
-        self.enchantments = [i for i in BazaarItemID if i.value.startswith("enchantment".upper())]
-
-        self.api = APIRequest(self, self.getTkMaster())
-        self.api.setRequestAPIHook(self.requestAPIHook)
-    def requestAPIHook(self):
+    def calculateCheapest(self):
         self.treeView.clear()
-        #self.treeView.addEntry("")
+        if SKY_BLOCK_API_PARSER is None:
+            tk.SimpleDialog.askError(self.master, "Cannot calculate! No API data available!")
+            return
+        self.eData = getCheapestEnchantmentData(SKY_BLOCK_API_PARSER, self.currentItem, instaBuy=True)
+        if self.eData is not None:
+            #add for
+            self.treeView.addEntry(
+                self.eData["book_from_id"].replace("ENCHANTMENT_", "").lower(),
+                prizeToStr(self.eData["book_from_buy_price"]/self.eData["book_from_amount"]),
+                self.eData["book_from_amount"],
+                prizeToStr(self.eData["book_from_buy_price"]),
+                ""
+            )
 
+
+
+#{'book_from_id': 'ENCHANTMENT_GREEN_THUMB_1', 'book_from_amount': 16, 'anvil_operation_amount': 15, 'book_from_buy_price': 137473706.30000004, 'book_from_buy_volume': 656, 'book_from_sells_per_hour': None}
 
 
 
     def onShow(self, **kwargs):
+        self.currentItem = kwargs["itemName"]
         self.placeRelative()
-        self.api.startAPIRequest()
+        self.calculateCheapest()
+        self.placeContentFrame()
+        self.setPageTitle(f"Cheapest Book Craft[{self.currentItem}]")
+
+
     def customShow(self, page):
         page.openNextMenuPage(self.master.searchPage,
-                         input={"Enchantment":self.enchantments},
+                         input={"Enchantment":ALL_ENCHANTMENT_IDS},
                          msg="Search EnchantedBook in Bazaar: (At least tree characters)",
                          next_page=self)
 
@@ -816,7 +853,6 @@ class Window(tk.Tk):
         SKY_BLOCK_API_PARSER = HypixelBazaarParser(data.getData())
         self.isConfigLoadedFromFile = True
         updateInfoLabel(SKY_BLOCK_API_PARSER, self.isConfigLoadedFromFile)
-
     def refreshAPIRequest(self):
         global SKY_BLOCK_API_PARSER
         if APIRequest.WAITING_FOR_API_REQUEST:
@@ -832,5 +868,8 @@ class Window(tk.Tk):
 
         SKY_BLOCK_API_PARSER = requestHypixelAPI(self)
         updateInfoLabel(SKY_BLOCK_API_PARSER, self.isConfigLoadedFromFile)
+
         APIRequest.WAITING_FOR_API_REQUEST = False
         self.lockInfoLabel = False
+
+
