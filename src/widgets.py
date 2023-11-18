@@ -7,7 +7,7 @@ class SettingValue(tk.Frame):
     def __init__(self, master, name, x, y, key):
         super().__init__(master, SG)
         self._key = key
-        self._e = tk.TextEntry(master, SG)
+        self._e = tk.TextEntry(self, SG)
         self._e.setValue(SettingValue.CONFIG["constants"][key])
         self._e.setText(name)
         self._e.getEntry().onUserInputEvent(self._set)

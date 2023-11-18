@@ -20,7 +20,8 @@ class Config:
         "player_name":"",
         "api_key":"",
         "constants":{
-            "bazaar_tax":1.25
+            "bazaar_tax":1.25,
+            "hypixel_config_path":""
         }
     })
     SETTINGS_CONFIG.load("settings.json")
@@ -77,6 +78,7 @@ class SettingsGUI(tk.Dialog):
         heightW = 10
 
         SettingValue(self.valueLf, name="Bazaar-Tax:", x=0, y=0, key="bazaar_tax")
+        SettingValue(self.valueLf, name="UseConfigValuesAt:", x=0, y=30, key="hypixel_config_path")
 
         self.valueLf.place(0, 50, 305, 300)
 

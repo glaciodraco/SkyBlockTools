@@ -2,6 +2,7 @@
 from hyPI._parsers import MayorData, BazaarHistory, BazaarHistoryProduct
 from hyPI.constants import BazaarItemID, AuctionItemID
 from hyPI.APIError import APIConnectionError
+from hyPI.hypixelAPI.loader import HypixelBazaarParser
 from hyPI.skyCoflnetAPI import SkyConflnetAPI
 from pysettings import tk, iterDict
 from pysettings.jsonConfig import JsonConfig
@@ -20,7 +21,7 @@ from pytz import timezone
 from analyzer import getPlotData
 from constants import STYLE_GROUP as SG, LOAD_STYLE, INFO_LABEL_GROUP as ILG
 from skyMath import getPlotTicksFromInterval, parseTimeDelta, getFlattenList, getMedianExponent, parsePrizeList, getMedianFromList
-from skyMisc import modeToBazaarAPIFunc, prizeToStr, requestHypixelAPI, updateInfoLabel
+from skyMisc import modeToBazaarAPIFunc, parseTimeToStr, prizeToStr, requestHypixelAPI, updateInfoLabel
 from widgets import CompleterEntry, CustomPage, CustomMenuPage
 from images import IconLoader
 from settings import SettingsGUI, Config
@@ -38,6 +39,7 @@ class APIRequest:
     start the API request by using 'startAPIRequest'
 
     """
+    WAITING_FOR_API_REQUEST = False
     def __init__(self, page, tkMaster:tk.Tk | tk.Toplevel, showLoadingFrame=True):
         self._tkMaster = tkMaster
         self._page = page
@@ -45,7 +47,7 @@ class APIRequest:
         self._dots = 0
         self._dataAvailable = False
         self._hook = None
-        self._waitingLabel = tk.Label(self._page, SG).setText("Waiting for API response").setFont(16).placeRelative(fixY=100, centerX=True, changeHeight=-40, changeWidth=-40, fixX=40)
+        self._waitingLabel = tk.Label(self._page, SG).setText("Waiting for API response").setFont(16)
     def startAPIRequest(self):
         """
         starts the API request and run threaded API-hook-method.
@@ -53,6 +55,10 @@ class APIRequest:
         @return:
         """
         assert self._hook is not None, "REQUEST HOOK IS NONE!"
+        if APIRequest.WAITING_FOR_API_REQUEST:
+            self._waitingLabel.placeForget()
+            self._page.placeContentFrame()
+            return
         self._dataAvailable = False
         self._page.hideContentFrame()
         if self._showLoadingFrame: self._waitingLabel.placeRelative(fixY=100, centerX=True, changeHeight=-40)
@@ -82,7 +88,9 @@ class APIRequest:
                 self._waitingLabel.setText("Waiting for API response"+"."*self._dots)
             self._tkMaster.update()
     def _requestAPI(self):
+        APIRequest.WAITING_FOR_API_REQUEST = True
         self._hook() # request API
+        APIRequest.WAITING_FOR_API_REQUEST = False
         self._dataAvailable = True
         self._finishAPIRequest()
     def _finishAPIRequest(self):
@@ -239,14 +247,7 @@ class MayorInfoPage(CustomPage):
         self.getTkMaster().updateDynamicWidgets()
     def createHistoryTab(self, tab):
         pass
-    def parseTime(self, d):
-        out = ""
-        av = False
-        for t, i in zip([d.day, d.hour, d.minute, d.second], ["d", "h", "m", "s"]):
-            if t > 0 or av:
-                out += f"{t}{i} "
-                av = True
-        return out
+
     def getPerkDescFromPerkName(self, mName, pName)->str:
         for perk in self.mayorData[mName]["perks"]:
             if perk["name"] == pName:
@@ -260,7 +261,7 @@ class MayorInfoPage(CustomPage):
         self.currentMayorEnd = self.currentMayor.getEndTimestamp()
 
         delta:timedelta = self.currentMayorEnd - self.getLocalizedNow()
-        self.timeLabel.setText(self.parseTime(parseTimeDelta(delta)))
+        self.timeLabel.setText(parseTimeToStr(parseTimeDelta(delta)))
 
         dataContent = {
             "Mayor Name:": mayorName,
@@ -298,7 +299,7 @@ class MayorInfoPage(CustomPage):
             sleep(1)
             if self.currentMayorEnd is None: continue
             delta: timedelta = self.currentMayorEnd - self.getLocalizedNow()
-            self.timeLabel.setText(self.parseTime(parseTimeDelta(delta)))
+            self.timeLabel.setText(parseTimeToStr(parseTimeDelta(delta)))
     def loadMayorImages(self):
         images = {}
         pathMayor = os.path.join(IMAGES, "mayors")
@@ -369,6 +370,7 @@ class ItemInfoPage(CustomPage):
         sp = self.currentHistoryData["past_sell_prices"]
         bv = self.currentHistoryData["past_buy_volume"]
         sv = self.currentHistoryData["past_sell_volume"]
+        if ts is None: return #no data available
         pricePref = self.currentHistoryData["price_prefix"]
         volPref = self.currentHistoryData["volume_prefix"]
 
@@ -684,7 +686,7 @@ class LoadingPage(CustomPage):
             self.processBar.addValue()
             if i == 0: # loading config
                 self.info.setText(msg)
-                sleep(.5)
+                sleep(.2)
                 configList = os.listdir(os.path.join(CONFIG))
                 for j, file in enumerate(configList):
                     self.info.setText(msg+f"  ({file.split('.')[0]}) [{j+1}/{len(configList)}]")
@@ -693,15 +695,24 @@ class LoadingPage(CustomPage):
                 self.info.setText(msg)
                 self.processBar.setAutomaticMode()
 
-                SKY_BLOCK_API_PARSER = requestHypixelAPI(self.master)
+                path = Config.SETTINGS_CONFIG["constants"]["hypixel_config_path"]
 
-                updateInfoLabel(SKY_BLOCK_API_PARSER)
+                if not os.path.exists(path) and path != "":
+                    tk.SimpleDialog.askWarning(self.master, "Could not read data from API-Config.\nConfig does not exist!\nSending request to Hypixel-API...")
+                    path = None
+                if path == "":
+                    path = None
+
+                SKY_BLOCK_API_PARSER = requestHypixelAPI(self.master, path)
+
+                updateInfoLabel(SKY_BLOCK_API_PARSER, path is not None)
+                self.master.isConfigLoadedFromFile = path is not None
 
                 self.processBar.setNormalMode()
                 self.processBar.setValue(i+1)
             else:
                 self.info.setText(msg)
-                sleep(.5)
+                sleep(.2)
         self.placeForget()
         self.master.mainMenuPage.openMenuPage()
     def requestAPIHook(self):
@@ -720,6 +731,8 @@ class Window(tk.Tk):
         self.isShiftPressed = False
         self.isControlPressed = False
         self.isAltPressed = False
+        self.lockInfoLabel = False
+        self.isConfigLoadedFromFile = False
         self.keyPressHooks = []
         ## instantiate Pages ##
         MsgText.info("Creating MenuPages...")
@@ -739,6 +752,7 @@ class Window(tk.Tk):
         self.configureWindow()
         self.createGUI()
         self.loadingPage.openMenuPage()
+        Thread(target=self._updateInfoLabel).start()
         Thread(target=self.loadingPage.load).start()
     def configureWindow(self):
         self.setMinSize(600, 600)
@@ -751,6 +765,9 @@ class Window(tk.Tk):
 
         self.bind(self.onKeyPress, tk.EventType.STRG_LEFT_DOWN, args=["isControlPressed", True])
         self.bind(self.onKeyPress, tk.EventType.STRG_LEFT_UP, args=["isControlPressed", False])
+
+        self.bind(lambda:Thread(target=self.refreshAPIRequest).start(), tk.EventType.hotKey(tk.FunctionKey.ALT, "F5"))
+        self.bind(lambda:SettingsGUI.openSettings(self), tk.EventType.hotKey(tk.FunctionKey.ALT, "s"))
     def onKeyPress(self, e):
         setattr(self, e.getArgs(0), e.getArgs(1))
         for hook in self.keyPressHooks:
@@ -758,12 +775,62 @@ class Window(tk.Tk):
     def createGUI(self):
         self.taskBar = tk.TaskBar(self, SG)
         self.taskBar_file = self.taskBar.createSubMenu("File")
-        #tk.Button(self.taskBar_file, SG).setText("Save...")
-        tk.Button(self.taskBar_file, SG).setText("Refresh API Data...(Alt+F5)")
-        self.taskBar_file.addSeparator()
-        tk.Button(self.taskBar_file, SG).setText("Settings (Alt+s)")
 
-        #self.taskBar_tools = self.taskBar.createSubMenu("Tools")
-        #tk.Button(self.taskBar_tools, SG).setText("Bazaar Item Info")
+
+        tk.Button(self.taskBar_file, SG).setText("Save current API-Data...").setCommand(self.saveAPIData)
+        tk.Button(self.taskBar_file, SG).setText("Open API-Data...").setCommand(self.openAPIData)
+        tk.Button(self.taskBar_file, SG).setText("Refresh API Data...(Alt+F5)").setCommand(lambda:Thread(target=self.refreshAPIRequest).start())
+        self.taskBar_file.addSeparator()
+        tk.Button(self.taskBar_file, SG).setText("Settings (Alt+s)").setCommand(lambda:SettingsGUI.openSettings(self))
+
 
         self.taskBar.create()
+    def _updateInfoLabel(self):
+        while True:
+            sleep(5)
+            if self.lockInfoLabel: continue
+            updateInfoLabel(SKY_BLOCK_API_PARSER, self.isConfigLoadedFromFile)
+    def saveAPIData(self):
+        if SKY_BLOCK_API_PARSER is not None:
+            path = tk.FileDialog.saveFile(self, "SkyBlockTools", types=[".json"])
+            if not path.endswith(".json"): path += ".json"
+            if os.path.exists(path):
+                if not tk.SimpleDialog.askOkayCancel(self, "Are you sure you want to overwrite the file?", "SkyBlockTools"):
+                    return
+            js = JsonConfig.fromDict(SKY_BLOCK_API_PARSER.getRawData())
+            js.path = path
+            js.save()
+    def openAPIData(self):
+        global SKY_BLOCK_API_PARSER
+        path = tk.FileDialog.openFile(self, "SkyBlockTools", types=[".json"])
+        if path is None:
+            tk.SimpleDialog.askError(self, "Could not read config!")
+            return
+        if not os.path.exists(path):
+            tk.SimpleDialog.askError(self, "Config file does not exist!")
+            return
+        data = JsonConfig.loadConfig(path, ignoreErrors=True)
+        if type(data) == str:
+            tk.SimpleDialog.askError(self, data)
+            return
+        SKY_BLOCK_API_PARSER = HypixelBazaarParser(data.getData())
+        self.isConfigLoadedFromFile = True
+        updateInfoLabel(SKY_BLOCK_API_PARSER, self.isConfigLoadedFromFile)
+
+    def refreshAPIRequest(self):
+        global SKY_BLOCK_API_PARSER
+        if APIRequest.WAITING_FOR_API_REQUEST:
+            tk.SimpleDialog.askError(self, "Another api request is still running\ntry again later.")
+            return
+        self.lockInfoLabel = True
+        APIRequest.WAITING_FOR_API_REQUEST = True
+        self.isConfigLoadedFromFile = False
+
+        ILG.setFg("white")
+        ILG.setText("Requesting Hypixel-API...")
+        sleep(.3)
+
+        SKY_BLOCK_API_PARSER = requestHypixelAPI(self)
+        updateInfoLabel(SKY_BLOCK_API_PARSER, self.isConfigLoadedFromFile)
+        APIRequest.WAITING_FOR_API_REQUEST = False
+        self.lockInfoLabel = False
