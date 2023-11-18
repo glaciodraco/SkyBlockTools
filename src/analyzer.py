@@ -69,13 +69,9 @@ def getCheapestEnchantmentData(parser:HypixelBazaarParser, inputEnchantment:Baza
     returnDict = {
         "book_from_id": str,
         "book_from_amount": int,
-
         "anvil_operation_amount": int,
-
         "book_from_buy_price": float,
-
         "book_from_buy_volume": float,
-
         "book_from_sells_per_hour": float,
     }
 

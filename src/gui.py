@@ -618,6 +618,7 @@ class EnchantingBookBazaarCheapestPage(CustomPage):
         super().__init__(master, pageTitle="Cheapest Book Craft Page", buttonText="Cheapest Book Craft")
         self.currentItem = None
         self.currentParser = None
+        # mark best !!!
 
         self.useBuyOffers = tk.Checkbutton(self.contentFrame, SG)
         self.useBuyOffers.setText("Use-Buy-Order-Price")
