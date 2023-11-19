@@ -5,8 +5,6 @@ from hyPI import getEnchantmentIDLvl
 from skyMath import getMedianExponent, parsePrizeList
 from skyMisc import getDictEnchantmentIDToLevels
 
-#test
-
 def getPlotData(ItemId:BazaarItemID | AuctionItemID | str, func):
     hist = func(ItemId)
     pastRawBuyPrizes = []
@@ -66,11 +64,12 @@ def getCheapestEnchantmentData(parser:HypixelBazaarParser, inputEnchantment: Baz
     # Calculate the Prize of a single book in compared to the others
 
     rawDict = {
+        "book_to_id": inputEnchantment,
         "book_from_id": "",
         "book_from_amount": None,
         "anvil_operation_amount": None,
         "book_from_buy_price": None,
-        "book_from_buy_volume": None,
+        "book_from_sell_volume": None,
         "book_from_sells_per_hour": None,
     }
     returnList = []
@@ -92,19 +91,21 @@ def getCheapestEnchantmentData(parser:HypixelBazaarParser, inputEnchantment: Baz
         for prizeSingleEnchantment in prizeList[single]:
             if 2 ** heightEnchantment <= neededHeight:
                 break
+
             neededHeight += 2 ** heightOfPossible
             endPriceAllBooks[single] += prizeSingleEnchantment
             amountOfBooks += 1
 
-            singleDict = {"book_from_id": single,
-                          "book_from_amount": amountOfBooks,
-                          "anvil_operation_amount": amountOfBooks - 1,
-                          "book_from_buy_price": endPriceAllBooks[single],
-                          "book_from_buy_volume": parser.getProductByID(single).getBuyVolume(),
-                          "book_from_sells_per_hour": None
-                          }
-        if not len(prizeList[single]):
-            print("No data found for:", single)
+            singleDict = {
+                "book_to_id":inputEnchantment,
+                "book_from_id": single,
+                "book_from_amount": amountOfBooks, # not always correct !
+                "anvil_operation_amount": amountOfBooks - 1, # not always correct !
+                "book_from_buy_price": endPriceAllBooks[single],
+                "book_from_sell_volume": parser.getProductByID(single).getSellVolume(),
+                "book_from_sells_per_hour": None
+            }
+        if not len(prizeList[single]): #  No Data found for this craft
             singleDict = rawDict.copy()
             singleDict["book_from_id"] = single
         returnList.append(singleDict)

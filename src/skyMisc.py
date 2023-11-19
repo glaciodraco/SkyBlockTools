@@ -11,6 +11,7 @@ from constants import INFO_LABEL_GROUP as ILG
 from settings import Config
 from skyMath import parseTimeDelta
 from typing import List, Dict
+from functools import total_ordering
 
 def requestHypixelAPI(master, path=None):
     """
@@ -77,18 +78,19 @@ def parseTimeToStr(d)->str:
             out += f"{t}{i} "
             av = True
     return out
-def prizeToStr(inputPrize:int | float)->str:
+def prizeToStr(inputPrize:int | float | None, hideCoins=False)->str | None:
+    if inputPrize is None: return None
     exponent = 0
     neg = inputPrize < 0
     if neg:
         inputPrize = abs(inputPrize)
-    prefix = ["coins", "k coins", "m coins", "b coins", "Tr", "Q"]
+    prefix = ["", "k", "m", "b", "Tr", "Q"]
     while inputPrize > 1000:
         inputPrize = inputPrize/1000
         exponent += 1
         if exponent > 5:
             return f"Overflow {inputPrize}"
-    return ("-" if neg else "")+str(round(inputPrize, 1)) +" "+ prefix[exponent]
+    return ("-" if neg else "")+str(round(inputPrize, 1)) +" "+ prefix[exponent] + ("" if hideCoins else " coins")
 def getDictEnchantmentIDToLevels()->Dict[str, List[str]]:
     """
     Returns a dictionary to access the valid enchantment levels from raw enchantmentID.
@@ -107,34 +109,45 @@ def getDictEnchantmentIDToLevels()->Dict[str, List[str]]:
     return typeEnchantment
 
 
-
 class BookCraft:
     def __init__(self, data, targetPrice):
         self._book_from_id = data["book_from_id"]
+        self._book_to_id = data["book_to_id"]
         self._book_from_amount = data["book_from_amount"]
         self._anvil_operation_amount = data["anvil_operation_amount"]
         self._book_from_buy_price = data["book_from_buy_price"]
-        self._book_from_buy_volume = data["book_from_buy_volume"]
+        self._book_from_sell_volume = data["book_from_sell_volume"]
         self._targetPrice = targetPrice
 
-    def getShowAbleID(self):
+    def getShowAbleIDFrom(self):
         return self.getIDFrom().replace("ENCHANTMENT_", "").lower()
+    def getShowAbleIDTo(self):
+        return self.getIDTo().replace("ENCHANTMENT_", "").lower()
     def getIDFrom(self)->str:
         return self._book_from_id
+    def getIDTo(self)->str:
+        return self._book_to_id
     def getFromPrice(self):
         return self._book_from_buy_price
     def getFromPriceSingle(self, round_=2):
+        if self._book_from_buy_price is None or self.getFromAmount() is None: return None
         return round(self._book_from_buy_price / self.getFromAmount(), round_)
     def getFromAmount(self):
         return self._book_from_amount
     def getSavedCoins(self):
+        if self.getFromPrice() is None: return None
         return self._targetPrice - self.getFromPrice()
-
-
-    #def __lt__(self, other):
-    #    return self.score < other.score
-
-
+    def getFromSellVolume(self):
+        return self._book_from_sell_volume
+    def __lt__(self, other):
+        if self.getSavedCoins() is None: return 0
+        if other.getSavedCoins() is None: return 1
+        return self.getSavedCoins() > other.getSavedCoins()
+    #def __eq__(self, other):
+    #    if self.getSavedCoins() is None or other.getSavedCoins() is None: return 0
+    #    return self.getSavedCoins() == other.getSavedCoins()
+    def __repr__(self):
+        return f"{self.getSavedCoins()}"
 
 
 

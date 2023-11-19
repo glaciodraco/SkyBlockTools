@@ -21,7 +21,7 @@ from pytz import timezone
 from analyzer import getPlotData, getCheapestEnchantmentData
 from constants import STYLE_GROUP as SG, LOAD_STYLE, INFO_LABEL_GROUP as ILG
 from skyMath import getPlotTicksFromInterval, parseTimeDelta, getFlattenList, getMedianExponent, parsePrizeList, getMedianFromList
-from skyMisc import modeToBazaarAPIFunc, parseTimeToStr, prizeToStr, requestHypixelAPI, updateInfoLabel, BookCraft
+from skyMisc import modeToBazaarAPIFunc, parseTimeToStr, prizeToStr, requestHypixelAPI, updateInfoLabel, BookCraft, getDictEnchantmentIDToLevels
 from widgets import CompleterEntry, CustomPage, CustomMenuPage
 from images import IconLoader
 from settings import SettingsGUI, Config
@@ -596,23 +596,110 @@ class EnchantingBookBazaarProfitPage(CustomPage):
 
         self.useBuyOffers = tk.Checkbutton(self.contentFrame, SG)
         self.useBuyOffers.setText("Use-Buy-Offers")
+        self.useBuyOffers.onSelectEvent(self.updateTreeView)
         self.useBuyOffers.placeRelative(fixHeight=25, stickDown=True, fixWidth=150)
 
         self.useSellOffers = tk.Checkbutton(self.contentFrame, SG)
         self.useSellOffers.setText("Use-Sell-Offers")
+        self.useSellOffers.onSelectEvent(self.updateTreeView)
         self.useSellOffers.placeRelative(fixHeight=25, stickDown=True, fixWidth=150, fixX=150)
 
-        self.api = APIRequest(self, self.getTkMaster())
-        self.api.setRequestAPIHook(self.requestAPIHook)
     def updateTreeView(self):
-        pass
+        self.treeView.clear()
+        if SKY_BLOCK_API_PARSER is None:
+            tk.SimpleDialog.askError(self.master, "Cannot calculate! No API data available!")
+            return
+
+        if not self.useBuyOffers.getValue():  # isInstaBuy?
+            self.treeView.setTableHeaders("Using-Book", "Buy-Price-Per-Item", "Total-Buy-Price", "Profit")
+        else:
+            self.treeView.setTableHeaders("Using-Book", "Buy-Price-Per-Item", "Total-Buy-Price", "Profit", "Others-try-to-buy")
+        eDataComplete = []
+        enchIDToLvl = getDictEnchantmentIDToLevels()
+        for currentItem in enchIDToLvl.keys():
+            currentItem = enchIDToLvl[currentItem][-1]
+            eData = getCheapestEnchantmentData(SKY_BLOCK_API_PARSER, currentItem, instaBuy=not self.useBuyOffers.getValue())
+            if eData is not None:
+                if self.useSellOffers.getValue(): # insta sell
+                    targetBookInstaBuy = SKY_BLOCK_API_PARSER.getProductByID(currentItem).getInstaBuyPrice()
+                else:
+                    targetBookInstaBuy = SKY_BLOCK_API_PARSER.getProductByID(currentItem).getInstaSellPrice()
+
+
+
+
+                """
+                prods = [
+                    SKY_BLOCK_API_PARSER.getProductByID(BazaarItemID.ENCHANTMENT_ULTIMATE_BANK_5),
+                    SKY_BLOCK_API_PARSER.getProductByID(BazaarItemID.ENCHANTMENT_ULTIMATE_BANK_4),
+                    SKY_BLOCK_API_PARSER.getProductByID(BazaarItemID.ENCHANTMENT_ULTIMATE_BANK_3),
+                    SKY_BLOCK_API_PARSER.getProductByID(BazaarItemID.ENCHANTMENT_ULTIMATE_BANK_2),
+                    SKY_BLOCK_API_PARSER.getProductByID(BazaarItemID.ENCHANTMENT_ULTIMATE_BANK_1),
+                ]
+
+                # == For Test Reason ==
+                for productFrom in prods:
+                    print(f"== {productFrom.getID()} ==")
+                    print(f"Volume:", productFrom.getBuyVolume(), "are Selling", )
+                    print(f"Volume:", productFrom.getSellVolume(), "are Buying", )
+                    targetBookInstaBuy__ = productFrom.getInstaBuyPrice()
+                    targetBookInstaSell = productFrom.getInstaSellPrice()
+
+                    print("Insta-Buy: ", round(targetBookInstaBuy__, 0))
+                    print("Insta-Sell: ", round(targetBookInstaSell, 0))
+                    if targetBookBuyOffer := productFrom.getSellOrders():
+                        print("Buy-Order: ", round(targetBookBuyOffer[0].getPricePerUnit(), 0))
+                    else:
+                        print("Buy-Order: ", None)
+
+                    if targetBookSellOrder := productFrom.getBuyOrders():
+                        print("Sell-Offer: ", round(targetBookSellOrder[0].getPricePerUnit(), 0))
+                    else:
+                        print("Sell-Offer: ", None)
+
+                    # print("InstaBuyTest",  productFrom.getInstaBuyPriceList(1)[0])
+                    # print("InstaSellTest", productFrom.getInstaSellPriceList(1)[0])
+                 """
+
+                eData = [BookCraft(d, targetBookInstaBuy) for d in eData]  # convert so sortable BookCraft instances
+                eData.sort()
+                eDataComplete.append(eData[0]) #get best BookCraft instance
+
+                if "bank" in eData[0].getIDFrom().lower():
+                    print("targetPrice", targetBookInstaBuy)
+
+
+        eDataComplete.sort()
+        for bookCraft in eDataComplete:
+            if "bank" not in bookCraft.getIDFrom().lower(): continue
+            if not self.useBuyOffers.getValue():
+                if bookCraft.getFromAmount() is None: continue
+                self.treeView.addEntry(
+                    f"{bookCraft.getShowAbleIDFrom()} [x{bookCraft.getFromAmount()}] -> {bookCraft.getShowAbleIDTo()}",
+                    prizeToStr(bookCraft.getFromPriceSingle(round_=2)),
+                    prizeToStr(bookCraft.getFromPrice()),
+                    prizeToStr(bookCraft.getSavedCoins())
+                )
+            else:
+                if bookCraft.getFromAmount() is None:
+                    pass
+
+                self.treeView.addEntry(
+                    f"{bookCraft.getShowAbleIDFrom()} [x{bookCraft.getFromAmount()}] -> {bookCraft.getShowAbleIDTo()}",
+                    prizeToStr(bookCraft.getFromPriceSingle(round_=2)),
+                    prizeToStr(bookCraft.getFromPrice()),
+                    prizeToStr(bookCraft.getSavedCoins()),
+                    prizeToStr(bookCraft.getFromSellVolume(), hideCoins=True),
+                )
 
     def requestAPIHook(self):
 
         return
     def onShow(self, **kwargs):
         self.placeRelative()
-        self.api.startAPIRequest()
+        self.updateTreeView()
+        self.placeContentFrame()
+
 class EnchantingBookBazaarCheapestPage(CustomPage):
     def __init__(self, master):
         super().__init__(master, pageTitle="Cheapest Book Craft Page", buttonText="Cheapest Book Craft")
@@ -622,6 +709,7 @@ class EnchantingBookBazaarCheapestPage(CustomPage):
 
         self.useBuyOffers = tk.Checkbutton(self.contentFrame, SG)
         self.useBuyOffers.setText("Use-Buy-Order-Price")
+        self.useBuyOffers.onSelectEvent(self.updateTreeView)
         self.useBuyOffers.placeRelative(fixHeight=25, stickDown=True, fixWidth=150)
 
         self.treeView = tk.TreeView(self.contentFrame, SG)
@@ -629,25 +717,77 @@ class EnchantingBookBazaarCheapestPage(CustomPage):
         self.treeView.setTableHeaders("Using-Book", "Buy-Price-Per-Item", "Buy-Amount", "Total-Buy-Price", "Saved-Coins")
         self.treeView.placeRelative(changeHeight=-25)
 
-    def calculateCheapest(self):
+    def updateTreeView(self):
         self.treeView.clear()
         if SKY_BLOCK_API_PARSER is None:
             tk.SimpleDialog.askError(self.master, "Cannot calculate! No API data available!")
             return
-        eData = getCheapestEnchantmentData(SKY_BLOCK_API_PARSER, self.currentItem, instaBuy=False)
+
+        if not self.useBuyOffers.getValue(): # isInstaBuy?
+            self.treeView.setTableHeaders("Using-Book", "Buy-Price-Per-Item", "Total-Buy-Price", "Saved-Coins")
+        else:
+            self.treeView.setTableHeaders("Using-Book", "Buy-Price-Per-Item", "Total-Buy-Price", "Saved-Coins", "Others-try-to-buy")
+
+        eData = getCheapestEnchantmentData(SKY_BLOCK_API_PARSER, self.currentItem, instaBuy=not self.useBuyOffers.getValue())
         if eData is not None:
             targetBookInstaBuy = SKY_BLOCK_API_PARSER.getProductByID(self.currentItem).getInstaBuyPrice()
-            targetBookInstaSell = SKY_BLOCK_API_PARSER.getProductByID(self.currentItem).getInstaSellPrice()
-            print("targetPriceBuy: ", prizeToStr(targetBookInstaBuy), "targetPriceSell: ", prizeToStr(targetBookInstaSell))
+
+            #"""
+            prods = [
+                SKY_BLOCK_API_PARSER.getProductByID(BazaarItemID.ENCHANTMENT_ULTIMATE_BANK_5),
+                SKY_BLOCK_API_PARSER.getProductByID(BazaarItemID.ENCHANTMENT_ULTIMATE_BANK_4),
+                SKY_BLOCK_API_PARSER.getProductByID(BazaarItemID.ENCHANTMENT_ULTIMATE_BANK_3),
+                SKY_BLOCK_API_PARSER.getProductByID(BazaarItemID.ENCHANTMENT_ULTIMATE_BANK_2),
+                SKY_BLOCK_API_PARSER.getProductByID(BazaarItemID.ENCHANTMENT_ULTIMATE_BANK_1),
+            ]
+
+
+            # == For Test Reason ==
+            for productFrom in prods:
+                print(f"== {productFrom.getID()} ==")
+                print(f"Volume:", productFrom.getBuyVolume(), "are Selling", )
+                print(f"Volume:", productFrom.getSellVolume(), "are Buying", )
+                targetBookInstaBuy__ = productFrom.getInstaBuyPrice()
+                targetBookInstaSell = productFrom.getInstaSellPrice()
+
+                print("Insta-Buy: ", round(targetBookInstaBuy__, 0))
+                print("Insta-Sell: ", round(targetBookInstaSell, 0))
+                if targetBookBuyOffer := productFrom.getSellOrders():
+                    print("Buy-Order: ", round(targetBookBuyOffer[0].getPricePerUnit(), 0))
+                else:
+                    print("Buy-Order: ", None)
+
+                if targetBookSellOrder := productFrom.getBuyOrders():
+                    print("Sell-Offer: ", round(targetBookSellOrder[0].getPricePerUnit(), 0))
+                else:
+                    print("Sell-Offer: ", None)
+
+                #print("InstaBuyTest",  productFrom.getInstaBuyPriceList(1)[0])
+                #print("InstaSellTest", productFrom.getInstaSellPriceList(1)[0])
+            #"""
+
             eData = [BookCraft(d, targetBookInstaBuy) for d in eData] # convert so sortable BookCraft instances
+            eData.sort()
             for bookCraft in eData:
-                self.treeView.addEntry(
-                    bookCraft.getShowAbleID(),
-                    prizeToStr(bookCraft.getFromPriceSingle(2)),
-                    bookCraft.getFromAmount(),
-                    prizeToStr(bookCraft.getFromPrice()),
-                    prizeToStr(bookCraft.getSavedCoins())
-                )
+                if not self.useBuyOffers.getValue():
+                    if bookCraft.getFromAmount() is None: continue
+                    self.treeView.addEntry(
+                        bookCraft.getShowAbleIDFrom()+f" [x{bookCraft.getFromAmount()}]",
+                        prizeToStr(bookCraft.getFromPriceSingle(round_=2)),
+                        prizeToStr(bookCraft.getFromPrice()),
+                        prizeToStr(bookCraft.getSavedCoins())
+                    )
+                else:
+                    if bookCraft.getFromAmount() is None:
+                        pass
+
+                    self.treeView.addEntry(
+                        bookCraft.getShowAbleIDFrom() + f" [x{bookCraft.getFromAmount()}]",
+                        prizeToStr(bookCraft.getFromPriceSingle(round_=2)),
+                        prizeToStr(bookCraft.getFromPrice()),
+                        prizeToStr(bookCraft.getSavedCoins()),
+                        prizeToStr(bookCraft.getFromSellVolume(), hideCoins=True),
+                    )
 
 
 
@@ -655,7 +795,7 @@ class EnchantingBookBazaarCheapestPage(CustomPage):
     def onShow(self, **kwargs):
         self.currentItem = kwargs["itemName"]
         self.placeRelative()
-        self.calculateCheapest()
+        self.updateTreeView()
         self.placeContentFrame()
         self.setPageTitle(f"Cheapest Book Craft [{self.currentItem}]")
     def customShow(self, page):
