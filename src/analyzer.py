@@ -85,7 +85,7 @@ def getCheapestEnchantmentData(parser:HypixelBazaarParser, inputEnchantment: Baz
         else:
             prizeList[single] = parser.getProductByID(single).getInstaSellPriceList(2 ** heightEnchantment)
         neededHeight = 0
-        amountOfBooks = 0
+        amountOfBooks = 2**(heightEnchantment-neededHeight)
         endPriceAllBooks[single] = 0
 
         for prizeSingleEnchantment in prizeList[single]:
@@ -94,7 +94,6 @@ def getCheapestEnchantmentData(parser:HypixelBazaarParser, inputEnchantment: Baz
 
             neededHeight += 2 ** heightOfPossible
             endPriceAllBooks[single] += prizeSingleEnchantment
-            amountOfBooks += 1
 
             singleDict = {
                 "book_to_id":inputEnchantment,
