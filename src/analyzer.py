@@ -5,6 +5,7 @@ from hyPI import getEnchantmentIDLvl
 from skyMath import getMedianExponent, parsePrizeList
 from skyMisc import getDictEnchantmentIDToLevels
 
+#test
 
 def getPlotData(ItemId:BazaarItemID | AuctionItemID | str, func):
     hist = func(ItemId)
