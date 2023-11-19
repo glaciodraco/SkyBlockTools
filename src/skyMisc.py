@@ -15,7 +15,11 @@ from typing import List, Dict
 def requestHypixelAPI(master, path=None):
     try:
         if path is not None:
-            data = fileLoader(path)
+            try:
+                data = fileLoader(path)
+            except:
+                tk.SimpleDialog.askError(master, f"Could not decode API-Config at:\n{path}", "SkyBlockTools")
+                return None
         else:
             data = APILoader(HypixelAPIURL.BAZAAR_URL, Config.SETTINGS_CONFIG["api_key"], Config.SETTINGS_CONFIG["player_name"])
         parser = HypixelBazaarParser(data)
