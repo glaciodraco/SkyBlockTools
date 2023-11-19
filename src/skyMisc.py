@@ -13,6 +13,12 @@ from skyMath import parseTimeDelta
 from typing import List, Dict
 
 def requestHypixelAPI(master, path=None):
+    """
+
+    @param master:
+    @param path:
+    @return:
+    """
     try:
         if path is not None:
             try:
