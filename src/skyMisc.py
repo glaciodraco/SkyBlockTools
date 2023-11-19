@@ -28,7 +28,6 @@ def requestHypixelAPI(master, path=None):
         tk.SimpleDialog.askError(master, e.getMessage(), "SkyBlockTools")
         return None
     return parser
-
 def updateInfoLabel(api:HypixelBazaarParser | None, loaded=False):
     if api is not None:
         ts:datetime = api.getLastUpdated()
@@ -50,7 +49,6 @@ def updateInfoLabel(api:HypixelBazaarParser | None, loaded=False):
     else:
         ILG.setFg("red")
         ILG.setText("SkyBlock-API request failed!")
-
 def modeToBazaarAPIFunc(mode):
     match mode:
         case "hour":
@@ -61,7 +59,6 @@ def modeToBazaarAPIFunc(mode):
             return SkyConflnetAPI.getBazaarHistoryWeek
         case "all":
             return SkyConflnetAPI.getBazaarHistoryComplete
-
 def parseTimeToStr(d)->str:
     out = ""
     av = False
@@ -70,17 +67,18 @@ def parseTimeToStr(d)->str:
             out += f"{t}{i} "
             av = True
     return out
-
 def prizeToStr(inputPrize:int | float)->str:
     exponent = 0
+    neg = inputPrize < 0
+    if neg:
+        inputPrize = abs(inputPrize)
     prefix = ["coins", "k coins", "m coins", "b coins", "Tr", "Q"]
     while inputPrize > 1000:
         inputPrize = inputPrize/1000
         exponent += 1
         if exponent > 5:
             return f"Overflow {inputPrize}"
-    return str(round(inputPrize, 1)) +" "+ prefix[exponent]
-
+    return ("-" if neg else "")+str(round(inputPrize, 1)) +" "+ prefix[exponent]
 def getDictEnchantmentIDToLevels()->Dict[str, List[str]]:
     """
     Returns a dictionary to access the valid enchantment levels from raw enchantmentID.
@@ -100,9 +98,31 @@ def getDictEnchantmentIDToLevels()->Dict[str, List[str]]:
 
 
 
+class BookCraft:
+    def __init__(self, data, targetPrice):
+        self._book_from_id = data["book_from_id"]
+        self._book_from_amount = data["book_from_amount"]
+        self._anvil_operation_amount = data["anvil_operation_amount"]
+        self._book_from_buy_price = data["book_from_buy_price"]
+        self._book_from_buy_volume = data["book_from_buy_volume"]
+        self._targetPrice = targetPrice
+
+    def getShowAbleID(self):
+        return self.getIDFrom().replace("ENCHANTMENT_", "").lower()
+    def getIDFrom(self)->str:
+        return self._book_from_id
+    def getFromPrice(self):
+        return self._book_from_buy_price
+    def getFromPriceSingle(self, round_=2):
+        return round(self._book_from_buy_price / self.getFromAmount(), round_)
+    def getFromAmount(self):
+        return self._book_from_amount
+    def getSavedCoins(self):
+        return self._targetPrice - self.getFromPrice()
 
 
-
+    #def __lt__(self, other):
+    #    return self.score < other.score
 
 
 

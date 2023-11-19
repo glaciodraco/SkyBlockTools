@@ -49,35 +49,32 @@ def getPlotData(ItemId:BazaarItemID | AuctionItemID | str, func):
         "volume_prefix":volumePref,
     }
 
-#getcheepestEnch
-#getEncha
 
-
-def getCheapestEnchantmentData(parser:HypixelBazaarParser, inputEnchantment:BazaarItemID | str, instaBuy=False)->dict | None:
+def getCheapestEnchantmentData(parser:HypixelBazaarParser, inputEnchantment: BazaarItemID | str, instaBuy=False) -> list | None:
     inputEnchantment = inputEnchantment.name if hasattr(inputEnchantment, "value") else inputEnchantment
+
     # getting the prizes of all Enchantments
     allEnchantments = getDictEnchantmentIDToLevels()
     # test if the input is an Enchantment to avoid Errors
     if "ENCHANTMENT" not in inputEnchantment:
         return None
 
-    #get Name and Level of 'inputEnchantment'.
+    # get Name and Level of 'inputEnchantment'.
     nameEnchantment, heightEnchantment = getEnchantmentIDLvl(inputEnchantment)
 
     # Calculate the Prize of a single book in compared to the others
 
-    returnDict = {
-        "book_from_id": str,
-        "book_from_amount": int,
-        "anvil_operation_amount": int,
-        "book_from_buy_price": float,
-        "book_from_buy_volume": float,
-        "book_from_sells_per_hour": float,
+    rawDict = {
+        "book_from_id": "",
+        "book_from_amount": None,
+        "anvil_operation_amount": None,
+        "book_from_buy_price": None,
+        "book_from_buy_volume": None,
+        "book_from_sells_per_hour": None,
     }
-
+    returnList = []
     prizeList = {}
     endPriceAllBooks = {}
-    bestEndPrize = 0
 
     for single in allEnchantments[nameEnchantment]:
         heightOfPossible = int(single.split('_')[-1])
@@ -97,13 +94,18 @@ def getCheapestEnchantmentData(parser:HypixelBazaarParser, inputEnchantment:Baza
             neededHeight += 2 ** heightOfPossible
             endPriceAllBooks[single] += prizeSingleEnchantment
             amountOfBooks += 1
-        if endPriceAllBooks[single] > bestEndPrize:
-            bestEndPrize = endPriceAllBooks[single]
-            returnDict["book_from_id"] = single
-            returnDict["book_from_amount"] = amountOfBooks
-            returnDict["anvil_operation_amount"] = amountOfBooks - 1
-            returnDict["book_from_buy_price"] = bestEndPrize
-            returnDict["book_from_buy_volume"] = parser.getProductByID(single).getBuyVolume()
-            returnDict["book_from_sells_per_hour"] = None
-    return returnDict
 
+            singleDict = {"book_from_id": single,
+                          "book_from_amount": amountOfBooks,
+                          "anvil_operation_amount": amountOfBooks - 1,
+                          "book_from_buy_price": endPriceAllBooks[single],
+                          "book_from_buy_volume": parser.getProductByID(single).getBuyVolume(),
+                          "book_from_sells_per_hour": None
+                          }
+        if not len(prizeList[single]):
+            print("No data found for:", single)
+            singleDict = rawDict.copy()
+            singleDict["book_from_id"] = single
+        returnList.append(singleDict)
+
+    return returnList

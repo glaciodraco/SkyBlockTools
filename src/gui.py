@@ -21,7 +21,7 @@ from pytz import timezone
 from analyzer import getPlotData, getCheapestEnchantmentData
 from constants import STYLE_GROUP as SG, LOAD_STYLE, INFO_LABEL_GROUP as ILG
 from skyMath import getPlotTicksFromInterval, parseTimeDelta, getFlattenList, getMedianExponent, parsePrizeList, getMedianFromList
-from skyMisc import modeToBazaarAPIFunc, parseTimeToStr, prizeToStr, requestHypixelAPI, updateInfoLabel
+from skyMisc import modeToBazaarAPIFunc, parseTimeToStr, prizeToStr, requestHypixelAPI, updateInfoLabel, BookCraft
 from widgets import CompleterEntry, CustomPage, CustomMenuPage
 from images import IconLoader
 from settings import SettingsGUI, Config
@@ -626,7 +626,7 @@ class EnchantingBookBazaarCheapestPage(CustomPage):
 
         self.treeView = tk.TreeView(self.contentFrame, SG)
         self.treeView.setNoSelectMode()
-        self.treeView.setTableHeaders("Name", "Buy-Price-Per-Item", "Buy-Amount", "Total-Buy-Price", "Saved-Coins")
+        self.treeView.setTableHeaders("Using-Book", "Buy-Price-Per-Item", "Buy-Amount", "Total-Buy-Price", "Saved-Coins")
         self.treeView.placeRelative(changeHeight=-25)
 
     def calculateCheapest(self):
@@ -634,31 +634,30 @@ class EnchantingBookBazaarCheapestPage(CustomPage):
         if SKY_BLOCK_API_PARSER is None:
             tk.SimpleDialog.askError(self.master, "Cannot calculate! No API data available!")
             return
-        self.eData = getCheapestEnchantmentData(SKY_BLOCK_API_PARSER, self.currentItem, instaBuy=True)
-        if self.eData is not None:
-            #add for
-            self.treeView.addEntry(
-                self.eData["book_from_id"].replace("ENCHANTMENT_", "").lower(),
-                prizeToStr(self.eData["book_from_buy_price"]/self.eData["book_from_amount"]),
-                self.eData["book_from_amount"],
-                prizeToStr(self.eData["book_from_buy_price"]),
-                ""
-            )
+        eData = getCheapestEnchantmentData(SKY_BLOCK_API_PARSER, self.currentItem, instaBuy=False)
+        if eData is not None:
+            targetBookInstaBuy = SKY_BLOCK_API_PARSER.getProductByID(self.currentItem).getInstaBuyPrice()
+            targetBookInstaSell = SKY_BLOCK_API_PARSER.getProductByID(self.currentItem).getInstaSellPrice()
+            print("targetPriceBuy: ", prizeToStr(targetBookInstaBuy), "targetPriceSell: ", prizeToStr(targetBookInstaSell))
+            eData = [BookCraft(d, targetBookInstaBuy) for d in eData] # convert so sortable BookCraft instances
+            for bookCraft in eData:
+                self.treeView.addEntry(
+                    bookCraft.getShowAbleID(),
+                    prizeToStr(bookCraft.getFromPriceSingle(2)),
+                    bookCraft.getFromAmount(),
+                    prizeToStr(bookCraft.getFromPrice()),
+                    prizeToStr(bookCraft.getSavedCoins())
+                )
 
 
 
 #{'book_from_id': 'ENCHANTMENT_GREEN_THUMB_1', 'book_from_amount': 16, 'anvil_operation_amount': 15, 'book_from_buy_price': 137473706.30000004, 'book_from_buy_volume': 656, 'book_from_sells_per_hour': None}
-
-
-
     def onShow(self, **kwargs):
         self.currentItem = kwargs["itemName"]
         self.placeRelative()
         self.calculateCheapest()
         self.placeContentFrame()
-        self.setPageTitle(f"Cheapest Book Craft[{self.currentItem}]")
-
-
+        self.setPageTitle(f"Cheapest Book Craft [{self.currentItem}]")
     def customShow(self, page):
         page.openNextMenuPage(self.master.searchPage,
                          input={"Enchantment":ALL_ENCHANTMENT_IDS},

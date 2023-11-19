@@ -72,20 +72,20 @@ def getFlattenList(inputList:List[float])->List[float]:
 def getMedianFromList(_in:List[float])->float:
     return float(median(_in))
 def getSuspiciousData(inputList: List[float], flattenFactor: float = 1.0) -> List[float]:
-    # Never used so far. If used maybe with Error
-    def _mostData(x=0):
-        for single in inputList:
-            if inputList.count(single) / len(inputList) > 0.75:
-                x += 0.1
-                _mostData(x)
-        print("[getSuspiciousData] Many data has the same value.")
-        return x
-
-    # divide data in two parts --> over median, under median
     isSusList = []
-    x = _mostData()
+    x = 0
     underMedian, overMedian = percentile(inputList, [25 - x, 75 + x])
     IQR = overMedian - underMedian
+
+    while IQR <= 0.2 and len(inputList) < 500000:
+        if x >= 25:
+            underMedian, overMedian = percentile(inputList, [0.1, 99.9])
+            IQR = overMedian - underMedian
+            break
+        underMedian, overMedian = percentile(inputList, [25 - x, 75 + x])
+        IQR = overMedian - underMedian
+        x += 0.1
+
     # Catch Data that is SUS
     borderUp = overMedian + IQR * 1.5
     borderDown = underMedian - IQR * 1.5
@@ -94,7 +94,6 @@ def getSuspiciousData(inputList: List[float], flattenFactor: float = 1.0) -> Lis
         if single < borderDown or single > borderUp:
             isSusList.append(single)
     return isSusList
-
 
 class TimeDelta:
     def __init__(self, day, hours, minutes, seconds):
